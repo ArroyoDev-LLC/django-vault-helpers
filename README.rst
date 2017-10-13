@@ -133,7 +133,16 @@ To use Vault to load IAM or STS credentials for AWS, configure the Vault AWS sec
     $ vault write aws/roles/myapplication \
             arn=arn:aws:iam::ACCOUNT-ID-WITHOUT-HYPHENS:role/MyApplicationRoleName
 
-Next, configure you Django project to load AWS credentials using Vault. To do this, edit the ``settings.py`` file to include the following line.
+Next, add settings via the following environment variables.
+
+===========================  =============================================================
+Environment Variable         Description
+===========================  =============================================================
+VAULT_AWS_PATH               Vault path to read from when fetching AWS credentials.
+                             For example, ``aws/sts/myapplication``.
+===========================  =============================================================
+
+Finally, configure you Django project to load AWS credentials using Vault. To do this, edit the ``settings.py`` file to include the following line.
 
 ::
 

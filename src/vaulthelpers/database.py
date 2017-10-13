@@ -16,6 +16,10 @@ def get_config(extra_config={}):
         {dictionary} -- Django database configuration
     """
     db_config = dj_database_url.config()
+    db_config.update({
+        'SET_ROLE': common.DATABASE_OWNERROLE,
+    })
+    db_config.update(extra_config)
 
     if not common.VAULT_URL:
         logger.warning('Failed to load DB configuration from Vault: missing Vault API URL.')
@@ -38,12 +42,13 @@ def get_config(extra_config={}):
         ssl_verify=common.VAULT_SSL_VERIFY,
         debug_output=common.VAULT_DEBUG)
 
-    db_config.update({
-        'USER': vault_creds.username,
-        'PASSWORD': vault_creds.password,
-        'SET_ROLE': common.DATABASE_OWNERROLE,
-    })
-
-    db_config.update(extra_config)
+    try:
+        db_config.update({
+            'USER': vault_creds.username,
+            'PASSWORD': vault_creds.password,
+        })
+    except Exception:
+        logger.error('Failed to load configuration from Vault at path {}.'.format(common.VAULT_DATABASE_PATH))
+        return db_config
 
     return DjangoAutoRefreshDBCredentialsDict(vault_creds, db_config)

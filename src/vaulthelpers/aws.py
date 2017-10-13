@@ -1,3 +1,4 @@
+from botocore.exceptions import CredentialRetrievalError
 from datetime import datetime, timedelta
 from dateutil.parser import parse
 from . import common
@@ -62,10 +63,14 @@ class VaultProvider(botocore.credentials.CredentialProvider):
             {dictionary} -- Credentials dictionary with keys ``access_key``, ``secret_key``, ``token``, and ``expiry_time``
         """
         def fetch_credentials():
-            vcl = self.auth.authenticated_client(
-                url=self.url,
-                verify=self.pin_cacert if self.pin_cacert else self.ssl_verify)
-            result = vcl.read(self.path)
+            try:
+                vcl = self.auth.authenticated_client(
+                    url=self.url,
+                    verify=self.pin_cacert if self.pin_cacert else self.ssl_verify)
+                result = vcl.read(self.path)
+            except Exception as e:
+                logger.error('Failed to load configuration from Vault at path {}.'.format(self.path))
+                raise CredentialRetrievalError(provider=self.METHOD, error_msg=str(e))
 
             expiry_time = datetime.utcnow().replace(tzinfo=pytz.utc)
             expiry_time += timedelta(seconds=result['lease_duration'])

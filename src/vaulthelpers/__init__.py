@@ -2,6 +2,9 @@ from . import aws  # NOQA
 from . import common  # NOQA
 from . import database  # NOQA
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def client():
@@ -17,9 +20,12 @@ class EnvironmentConfig(object):
     def __init__(self, path):
         self.path = path
         self.config = {}
-        vcl = client()
-        if vcl:
-            self.config = vcl.read(self.path).get('data', {})
+        try:
+            vcl = client()
+            if vcl:
+                self.config = vcl.read(self.path).get('data', {})
+        except Exception:
+            logger.error('Failed to load configuration from Vault at path {}.'.format(path))
 
     def get(self, name, default=None):
         value = self.config.get(name)

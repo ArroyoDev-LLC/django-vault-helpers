@@ -29,5 +29,3 @@ services:
       VAULT_AWS_PATH: aws/sts/vaulthelpers-sandbox
       DATABASE_URL: postgres://postgres:5432/vaulthelpers
       DATABASE_OWNERROLE: vaulthelpers
-    volumes:
-      - .:/code

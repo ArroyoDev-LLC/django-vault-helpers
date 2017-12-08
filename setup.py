@@ -13,7 +13,8 @@ packages = find_packages('src')
 
 install_requires = [
     '12factor-vault>=0.1.15',
-    'Django>=1.9.6',
+    'Django>=1.9.6,<2.0',
+    'portalocker>=1.1.0',
     'pytz>=2017.2',
     'python-dateutil>=2.6.1'
 ]

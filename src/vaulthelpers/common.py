@@ -10,11 +10,9 @@ import os.path
 import os
 import pytz
 import hvac
+import threading
 
 logger = logging.getLogger(__name__)
-
-# Global variable to cache Vault authenticator instance
-VAULT_AUTH = None
 
 # Basic Vault configuration
 VAULT_URL = os.environ.get('VAULT_URL')
@@ -52,6 +50,8 @@ VAULT_AWS_PATH = os.environ.get("VAULT_AWS_PATH")
 # PostgreSQL role to assume upon connection
 DATABASE_OWNERROLE = os.environ.get("DATABASE_OWNERROLE")
 
+# Thread local storage used to store the VaultAuthenticator instance
+threadLocal = threading.local()
 
 
 class CachedVaultAuthenticator(BaseVaultAuthenticator):
@@ -170,16 +170,14 @@ class CachedVaultAuthenticator(BaseVaultAuthenticator):
 
 
 def init_vault():
-    global VAULT_AUTH
     if not CachedVaultAuthenticator.has_envconfig():
         logger.warning('Could not load Vault configuration from environment variables')
         return
-    VAULT_AUTH = CachedVaultAuthenticator.fromenv()
+    threadLocal.vaultAuthenticator = CachedVaultAuthenticator.fromenv()
 
 
 
 def get_vault_auth():
-    global VAULT_AUTH
-    if not VAULT_AUTH:
+    if not getattr(threadLocal, 'vaultAuthenticator', None):
         init_vault()
-    return VAULT_AUTH
+    return threadLocal.vaultAuthenticator

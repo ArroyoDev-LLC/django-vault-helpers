@@ -47,8 +47,8 @@ def get_config(extra_config={}):
             'USER': vault_creds.username,
             'PASSWORD': vault_creds.password,
         })
-    except Exception:
-        logger.error('Failed to load configuration from Vault at path {}.'.format(common.VAULT_DATABASE_PATH))
+    except Exception as e:
+        logger.error('Failed to load configuration from Vault at path {}. Exception: {}'.format(common.VAULT_DATABASE_PATH, str(e)))
         return db_config
 
     return DjangoAutoRefreshDBCredentialsDict(vault_creds, db_config)

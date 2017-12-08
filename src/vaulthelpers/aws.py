@@ -69,7 +69,7 @@ class VaultProvider(botocore.credentials.CredentialProvider):
                     verify=self.pin_cacert if self.pin_cacert else self.ssl_verify)
                 result = vcl.read(self.path)
             except Exception as e:
-                logger.error('Failed to load configuration from Vault at path {}.'.format(self.path))
+                logger.error('Failed to load configuration from Vault at path {}. Exception: {}'.format(self.path, str(e)))
                 raise CredentialRetrievalError(provider=self.METHOD, error_msg=str(e))
 
             expiry_time = datetime.utcnow().replace(tzinfo=pytz.utc)

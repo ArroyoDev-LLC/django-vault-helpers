@@ -173,6 +173,10 @@ To directly access the authentication ``hvac`` client connector, fetch it from t
 Changelog
 =========
 
+0.3.0
++++++
+- Add file system caching of vault tokens.
+
 0.2.0
 +++++
 - Add S3 storage backend based on ``storages.backends.s3boto3.S3Boto3Storage``.

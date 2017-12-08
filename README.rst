@@ -173,6 +173,10 @@ To directly access the authentication ``hvac`` client connector, fetch it from t
 Changelog
 =========
 
+0.3.1
++++++
+- Fixed TLS connection issue by caching VaultAuthenticator instance in thread local storage.
+
 0.3.0
 +++++
 - Add file system caching of vault tokens.

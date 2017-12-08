@@ -91,6 +91,7 @@ class CachedVaultAuthenticator(BaseVaultAuthenticator):
     def __init__(self):
         super().__init__()
         self._client = None
+        self._client_pid = None
         self._client_expires = None
 
 
@@ -105,10 +106,16 @@ class CachedVaultAuthenticator(BaseVaultAuthenticator):
 
 
     def authenticated_client(self, *args, **kwargs):
+        # Set some default kwargs
+        if 'url' not in kwargs:
+            kwargs['url'] = VAULT_URL
+        if 'verify' not in kwargs:
+            kwargs['verify'] = VAULT_CACERT if VAULT_CACERT else VAULT_SSL_VERIFY
+
         # Is there a valid client still in memory? Try to use it.
-        if self._client and self._client_expires:
+        if self._client and self._client_pid and self._client_expires:
             refresh_threshold = (self._client_expires - timedelta(seconds=self.TOKEN_REFRESH_SECONDS))
-            if datetime.now(tz=pytz.UTC) <= refresh_threshold:
+            if self._client_pid == os.getpid() and datetime.now(tz=pytz.UTC) <= refresh_threshold:
                 return self._client
 
         # Obtain a lock file so prevent races between multiple processes trying to obtain tokens at the same time
@@ -120,6 +127,7 @@ class CachedVaultAuthenticator(BaseVaultAuthenticator):
                 client = hvac.Client(token=cache['token'], *args, **kwargs)
                 if client.is_authenticated():
                     self._client = client
+                    self._client_pid = os.getpid()
                     self._client_expires = cache['expire_time']
                     return self._client
 
@@ -156,6 +164,7 @@ class CachedVaultAuthenticator(BaseVaultAuthenticator):
     def write_token_cache(self, client):
         token_info = client.lookup_token()
         self._client = client
+        self._client_pid = os.getpid()  # Store the current PID so we know to create a new client if this process gets forked.
         if token_info['data']['expire_time']:
             self._client_expires = dateutil.parser.parse(token_info['data']['expire_time'])
         else:

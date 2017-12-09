@@ -13,7 +13,7 @@ def client():
     if not vault_auth:
         return
     verify = common.VAULT_CACERT or common.VAULT_SSL_VERIFY
-    vcl = vault_auth.authenticated_client(common.VAULT_URL, verify=verify)
+    vcl = vault_auth.authenticated_client(url=common.VAULT_URL, verify=verify)
     return vcl
 
 

@@ -1,5 +1,6 @@
 import os
 import vaulthelpers
+import versiontag
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -19,6 +20,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.flatpages',
     'django.contrib.postgres',
+    # 'raven.contrib.django.raven_compat',
     'postgresql_setrole',
     'vault12factor',
     'vaulthelpers',
@@ -57,6 +59,11 @@ TEMPLATES = [
 ]
 
 STATIC_URL = '/static/'
+
+RAVEN_CONFIG = {
+    'dsn': '',
+    'release': versiontag.get_version(),
+}
 
 LOGGING = {
     'version': 1,

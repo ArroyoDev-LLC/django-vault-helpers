@@ -28,6 +28,9 @@ extras_require = {
         'dj-database-url>=0.4.2',
         'django-postgresql-setrole>=1.0.10',
     ],
+    'sentry': [
+        'raven>=6.0.0',
+    ],
     'development': [
         'flake8>=3.3.0',
         'psycopg2>=2.7.1',

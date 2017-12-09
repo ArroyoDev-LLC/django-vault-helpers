@@ -46,13 +46,14 @@ VAULT_DEBUG                  Optional. Enable Vault debug logging.
 
 In addition to the settings above, you must provide environment variables for one of the authentication methods below.
 
-===========================  =============================================================
-Environment Variable         Description
-===========================  =============================================================
-VAULT_TOKEN                  Token for Vault Token authentication
-VAULT_APPID, VAULT_USERID    App-ID authentication
-VAULT_SSLCERT, VAULT_SSLKEY  SSL Client Cert authentication
-===========================  =============================================================
+============================  =============================================================
+Environment Variable          Description
+============================  =============================================================
+VAULT_TOKEN                   Token for Vault Token authentication
+VAULT_APPID, VAULT_USERID     App-ID authentication
+VAULT_ROLEID, VAULT_SECRETID  App-Role authentication
+VAULT_SSLCERT, VAULT_SSLKEY   SSL Client Cert authentication
+============================  =============================================================
 
 
 Database Connection Secrets
@@ -172,6 +173,12 @@ To directly access the authentication ``hvac`` client connector, fetch it from t
 
 Changelog
 =========
+
+0.3.3
++++++
+- Fix bug in with passing url parameter to HVAC client in ``common.EnvironmentConfig``
+- Improve testing.
+- Support Django 2.0
 
 0.3.2
 +++++

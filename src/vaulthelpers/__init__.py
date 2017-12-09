@@ -33,3 +33,10 @@ class EnvironmentConfig(object):
         if value:
             return value
         return os.environ.get(name, default)
+
+    def __getitem__(self, name):
+        if name in self.config:
+            return self.config[name]
+        if name in os.environ:
+            return os.environ[name]
+        raise KeyError(name)

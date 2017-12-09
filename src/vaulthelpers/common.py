@@ -187,13 +187,22 @@ class CachedVaultAuthenticator(BaseVaultAuthenticator):
             json.dump(token_data, token_file, cls=DjangoJSONEncoder)
 
 
+    def purge_token_cache(self):
+        with portalocker.Lock(self.lock_filename, timeout=10):
+            os.unlink(self.token_filename)
+
+
 
 def init_vault():
-    if not CachedVaultAuthenticator.has_envconfig():
+    if CachedVaultAuthenticator.has_envconfig():
+        threadLocal.vaultAuthenticator = CachedVaultAuthenticator.fromenv()
+    else:
+        threadLocal.vaultAuthenticator = None
         logger.warning('Could not load Vault configuration from environment variables')
-        return
-    threadLocal.vaultAuthenticator = CachedVaultAuthenticator.fromenv()
 
+
+def reset_vault():
+    threadLocal.vaultAuthenticator = None
 
 
 def get_vault_auth():

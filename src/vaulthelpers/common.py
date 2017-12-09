@@ -88,6 +88,16 @@ class CachedVaultAuthenticator(BaseVaultAuthenticator):
         raise VaultCredentialProviderException("Unable to configure Vault authentication from the environment")
 
 
+    @classmethod
+    def approle(cls, role_id, secret_id=None, mountpoint="approle", use_token=True):
+        i = cls()
+        i.credentials = (role_id, secret_id)
+        i.authmount = mountpoint
+        i.authtype = "approle"
+        i.use_token = use_token
+        return i
+
+
     def __init__(self):
         super().__init__()
         self._client = None

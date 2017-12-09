@@ -20,12 +20,17 @@ services:
       - postgres
       - vault
     environment:
-      VAULT_TOKEN: my-root-token
+      VAULT_ROOT_TOKEN: my-root-token
+
+      VAULT_ROLEID: 63ed0933-55a8-6f75-3697-c6a0833b1ff1
+      VAULT_SECRETID: 880bfece-8bb6-6c82-7b41-4a90a3ebea1d
+
       VAULT_URL: http://vault:8200/
       VAULT_CACERT:
       VAULT_SKIP_VERIFY: 'yes'
       VAULT_DEBUG: 'no'
       VAULT_DATABASE_PATH: database/creds/vaulthelpers-sandbox
       VAULT_AWS_PATH: aws/sts/vaulthelpers-sandbox
+
       DATABASE_URL: postgres://postgres:5432/vaulthelpers
       DATABASE_OWNERROLE: vaulthelpers

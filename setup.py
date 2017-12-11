@@ -12,8 +12,8 @@ from versiontag import get_version, cache_git_tag  # NOQA
 packages = find_packages('src')
 
 install_requires = [
-    '12factor-vault>=0.1.15',
     'Django>=1.9.6',
+    'hvac>=0.3.0',
     'portalocker>=1.1.0',
     'pytz>=2017.2',
     'python-dateutil>=2.6.1'

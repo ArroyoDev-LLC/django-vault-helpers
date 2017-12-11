@@ -1,3 +1,4 @@
+from django.apps.config import AppConfig
 from . import aws  # NOQA
 from . import common  # NOQA
 from . import database  # NOQA
@@ -7,14 +8,32 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+default_app_config = 'vaulthelpers.VaultHelpersAppConfig'
+
+
 
 def client():
     vault_auth = common.get_vault_auth()
     if not vault_auth:
         return
-    verify = common.VAULT_CACERT or common.VAULT_SSL_VERIFY
-    vcl = vault_auth.authenticated_client(url=common.VAULT_URL, verify=verify)
+    vcl = vault_auth.authenticated_client()
     return vcl
+
+
+
+class VaultHelpersAppConfig(AppConfig):
+    name = 'vaulthelpers'
+
+    def ready(self):
+        if common.VaultAuthenticator.has_envconfig():
+            from django.conf import settings
+            found = False
+            for k, db in settings.DATABASES.items():
+                if isinstance(db, database.DjangoAutoRefreshDBCredentialsDict):
+                    found = True
+            if found:
+                database.monkeypatch_django()
+
 
 
 class EnvironmentConfig(object):

@@ -20,23 +20,14 @@ class VaultProvider(botocore.credentials.CredentialProvider):
     REFRESH_MARGIN = (60 * 10)  # Refresh credentials 10 minutes before they expire
 
 
-    def __init__(self, url, auth, path, pin_cacert=None, ssl_verify=True):
-        """Initialize the Vault credentials provider.
+    def __init__(self, path):
+        """
+        Initialize the Vault credentials provider.
 
         Arguments:
-            url {string} -- Vault API URL
-            auth {VaultAuth12Factor} -- Vault Authenticator instance. See 12factor-vault package
             path {string} -- Vault secret path to use to fetch AWS credentials
-
-        Keyword Arguments:
-            pin_cacert {string} -- Path to HTTPS CA certificate file for CA pinning (default: {None})
-            ssl_verify {bool} -- Verify validity of Vault's SSL certificate (default: {True})
         """
-        self.url = url
-        self.auth = auth
         self.path = path
-        self.pin_cacert = pin_cacert
-        self.ssl_verify = ssl_verify
 
 
     def load(self):
@@ -64,9 +55,7 @@ class VaultProvider(botocore.credentials.CredentialProvider):
         """
         def fetch_credentials():
             try:
-                vcl = self.auth.authenticated_client(
-                    url=self.url,
-                    verify=self.pin_cacert if self.pin_cacert else self.ssl_verify)
+                vcl = common.get_vault_auth().authenticated_client()
                 result = vcl.read(self.path)
             except Exception as e:
                 utils.log_exception('Failed to load configuration from Vault at path {}.'.format(self.path))
@@ -88,27 +77,15 @@ class VaultProvider(botocore.credentials.CredentialProvider):
 
 
 class VaultSession(botocore.session.Session):
-    def __init__(self, vault_url, vault_auth, vault_path, *args, vault_pin_cacert=None, vault_ssl_verify=True, **kwargs):
+    def __init__(self, vault_path, *args, **kwargs):
         """Initialize a ``botocore`` session using credentials from Vault.
 
         Exactly the same as ``botocore.session.Session``, but uses AWS credentials from Vault.
 
         Arguments:
-            vault_url {string} -- Vault API URL
-            vault_auth {VaultAuth12Factor} -- Vault Authenticator instance. See 12factor-vault package
             vault_path {string} -- Vault secret path to use to fetch AWS credentials
-
-        Keyword Arguments:
-            vault_pin_cacert {string} -- Path to HTTPS CA certificate file for CA pinning (default: {None})
-            vault_ssl_verify {bool} -- Verify validity of Vault's SSL certificate (default: {True})
         """
-        self._vault_kwargs = {
-            'url': vault_url,
-            'auth': vault_auth,
-            'path': vault_path,
-            'pin_cacert': vault_pin_cacert,
-            'ssl_verify': vault_ssl_verify,
-        }
+        self._vault_path = vault_path
         super().__init__(*args, **kwargs)
 
 
@@ -116,31 +93,19 @@ class VaultSession(botocore.session.Session):
         """Registers a credential resolve instance with VaultProvider inserted as the most preferred credential provider."""
         def get_cred_resolver():
             credential_resolver = botocore.credentials.create_credential_resolver(self)
-            vault_provider = VaultProvider(**self._vault_kwargs)
+            vault_provider = VaultProvider(self._vault_path)
             credential_resolver.insert_before(botocore.credentials.EnvProvider.METHOD, vault_provider)
             return credential_resolver
         self._components.lazy_register_component('credential_provider', get_cred_resolver)
 
 
 def init_boto3_credentials():
-    """Configures boto3 to use AWS credentials from Vault"""
-    if not common.VAULT_URL:
-        logger.warning('Failed to load AWS credentials from Vault: missing Vault API URL.')
-        return
-
+    """
+    Configures boto3 to use AWS credentials from Vault
+    """
     if not common.VAULT_AWS_PATH:
         logger.warning('Failed to load AWS credentials from Vault: missing AWS secret path.')
         return
 
-    vault_auth = common.get_vault_auth()
-    if not vault_auth:
-        logger.warning('Failed to load AWS credentials from Vault: missing Vault authentication.')
-        return
-
-    botocore_session = VaultSession(
-        vault_url=common.VAULT_URL,
-        vault_auth=vault_auth,
-        vault_path=common.VAULT_AWS_PATH,
-        vault_pin_cacert=common.VAULT_CACERT,
-        vault_ssl_verify=common.VAULT_SSL_VERIFY)
+    botocore_session = VaultSession(vault_path=common.VAULT_AWS_PATH)
     boto3.setup_default_session(botocore_session=botocore_session)

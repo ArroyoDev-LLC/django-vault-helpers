@@ -22,7 +22,6 @@ INSTALLED_APPS = [
     'django.contrib.postgres',
     # 'raven.contrib.django.raven_compat',
     'postgresql_setrole',
-    'vault12factor',
     'vaulthelpers',
 ]
 
@@ -84,7 +83,7 @@ LOGGING = {
     },
     'root': {
         'handlers': ['console'],
-        'level': 'ERROR',
+        'level': 'INFO',
     }
 }
 

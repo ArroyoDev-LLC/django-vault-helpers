@@ -9,6 +9,7 @@ cache:
 test_python34:
   stage: test
   script:
+    - rm docker-compose.override.yml
     - docker-compose pull
     - docker-compose build --pull
     - docker-compose run --rm test tox --skip-missing-interpreters
@@ -16,6 +17,7 @@ test_python34:
 test_python35:
   stage: test
   script:
+    - rm docker-compose.override.yml
     - docker-compose pull
     - docker-compose build --pull
     - docker-compose run --rm test tox --skip-missing-interpreters
@@ -23,6 +25,7 @@ test_python35:
 test_python36:
   stage: test
   script:
+    - rm docker-compose.override.yml
     - docker-compose pull
     - docker-compose build --pull
     - docker-compose run --rm test tox --skip-missing-interpreters

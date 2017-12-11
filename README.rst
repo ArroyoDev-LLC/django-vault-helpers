@@ -172,6 +172,12 @@ To directly access the authentication ``hvac`` client connector, fetch it from t
 Changelog
 =========
 
+0.4.0
++++++
+- Fix bug with Database credential fetch code when a lease appears to still be valid but isn't, due to it's parent token getting revoked.
+- Added tests for database and AWS components.
+- Dropped dependencies on ``12factor-vault`` and ``django-postgresql-setrole``. When upgrading to this version, it is recommended to uninstall these packages.
+
 0.3.3
 +++++
 - Fix bug in with passing url parameter to HVAC client in ``common.EnvironmentConfig``

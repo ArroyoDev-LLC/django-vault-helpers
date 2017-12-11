@@ -22,7 +22,6 @@ Add the new packages to your installed apps.
 
     INSTALLED_APPS = [
         ...
-        'postgresql_setrole',
         'vaulthelpers',
         ...
     ]

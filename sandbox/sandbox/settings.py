@@ -21,7 +21,6 @@ INSTALLED_APPS = [
     'django.contrib.flatpages',
     'django.contrib.postgres',
     # 'raven.contrib.django.raven_compat',
-    'postgresql_setrole',
     'vaulthelpers',
 ]
 

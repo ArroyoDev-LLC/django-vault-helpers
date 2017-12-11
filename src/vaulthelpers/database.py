@@ -8,8 +8,35 @@ from . import common, utils
 import logging
 import dj_database_url
 import pytz
+import warnings
+
+set_role_warning_given = False
+
+_operror_types = ()
+_operror_types += (django_db_utils.OperationalError,)
+try:
+    import psycopg2
+except ImportError:
+    pass
+else:
+    _operror_types += (psycopg2.OperationalError,)
+
+try:
+    import sqlite3
+except ImportError:
+    pass
+else:
+    _operror_types += (sqlite3.OperationalError,)
+
+try:
+    import MySQLdb
+except ImportError:
+    pass
+else:
+    _operror_types += (MySQLdb.OperationalError,)
 
 logger = logging.getLogger(__name__)
+
 
 
 class DatabaseCredentialProvider(object):
@@ -149,30 +176,6 @@ def get_config(extra_config={}):
 
 
 
-_operror_types = ()
-_operror_types += (django_db_utils.OperationalError,)
-try:
-    import psycopg2
-except ImportError:
-    pass
-else:
-    _operror_types += (psycopg2.OperationalError,)
-
-try:
-    import sqlite3
-except ImportError:
-    pass
-else:
-    _operror_types += (sqlite3.OperationalError,)
-
-try:
-    import MySQLdb
-except ImportError:
-    pass
-else:
-    _operror_types += (MySQLdb.OperationalError,)
-
-
 def monkeypatch_django():
     def ensure_connection_with_retries(self):
         if self.connection is not None and self.connection.closed:
@@ -204,3 +207,20 @@ def monkeypatch_django():
 
     logger.debug("Installed vaulthelpers database connection helper into BaseDatabaseWrapper")
     django_db_base.BaseDatabaseWrapper.ensure_connection = ensure_connection_with_retries
+
+
+
+def set_role_connection(sender, connection, **kwargs):
+    global set_role_warning_given
+    role = None
+    if "set_role" in connection.settings_dict:
+        role = connection.settings_dict["set_role"]
+    elif "SET_ROLE" in connection.settings_dict:
+        role = connection.settings_dict["SET_ROLE"]
+
+    if role:
+        connection.cursor().execute("SET ROLE %s", (role, ))
+    else:
+        if not set_role_warning_given:
+            warnings.warn("Value for SET_ROLE is missing from settings.DATABASE")
+            set_role_warning_given = True

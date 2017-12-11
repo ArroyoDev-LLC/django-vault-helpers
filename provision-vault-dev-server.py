@@ -12,14 +12,6 @@ vault = hvac.Client(
     verify=False)
 
 
-backends = vault.list_audit_backends()
-if 'file/' not in backends:
-    print('Enabling the file audit backend...')
-    vault.enable_audit_backend('file', options=dict(file_path='/var/audit-logs/vault.log'))
-else:
-    print('File audit backend is already mounted.')
-
-
 backends = vault.list_auth_backends()
 if 'approle/' not in backends:
     print('Enabling the approle auth backend...')

@@ -1,21 +1,11 @@
 from django.apps.config import AppConfig
 from django.core.exceptions import ImproperlyConfigured
 from django.db.backends.signals import connection_created
-from django.db.backends.postgresql.base import DatabaseWrapper as PostgreSQLDatabaseWrapper
 from . import aws  # NOQA
 from . import common  # NOQA
 from . import database  # NOQA
 from . import utils
 import os
-import logging
-
-# Try to import PostGISDatabaseWrapper. This will fail if GDAL isn't installed.
-try:
-    from django.contrib.gis.db.backends.postgis.base import DatabaseWrapper as PostGISDatabaseWrapper
-except (ImportError, ImproperlyConfigured):
-    PostGISDatabaseWrapper = None
-
-logger = logging.getLogger(__name__)
 
 default_app_config = 'vaulthelpers.VaultHelpersAppConfig'
 
@@ -34,7 +24,8 @@ class VaultHelpersAppConfig(AppConfig):
     name = 'vaulthelpers'
 
     def ready(self):
-        # Register DB credential fetching code
+        # Register DB credential fetching code so that we can fetch credentials from Vault before
+        # attempting to connect to the database.
         if common.VaultAuthenticator.has_envconfig():
             from django.conf import settings
             found = False
@@ -44,10 +35,16 @@ class VaultHelpersAppConfig(AppConfig):
             if found:
                 database.monkeypatch_django()
 
-        # Register SET_ROLE signal handler
+        # Register SET_ROLE signal handler for the standard PostgreSQL database wrapper
+        from django.db.backends.postgresql.base import DatabaseWrapper as PostgreSQLDatabaseWrapper
         connection_created.connect(database.set_role_connection, sender=PostgreSQLDatabaseWrapper)
-        if PostGISDatabaseWrapper is not None:
+
+        # Register SET_ROLE signal handler for the PostGIS database wrapper
+        try:
+            from django.contrib.gis.db.backends.postgis.base import DatabaseWrapper as PostGISDatabaseWrapper
             connection_created.connect(database.set_role_connection, sender=PostGISDatabaseWrapper)
+        except (ImportError, ImproperlyConfigured):  # This exception will get thrown if the GDAL C libraries aren't installed.
+            pass
 
 
 

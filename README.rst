@@ -172,6 +172,10 @@ To directly access the authentication ``hvac`` client connector, fetch it from t
 Changelog
 =========
 
+0.4.1
++++++
+- Fix bug with SET ROLE when using the PostGIS database wrapper.
+
 0.4.0
 +++++
 - Fix bug with Database credential fetch code when a lease appears to still be valid but isn't, due to it's parent token getting revoked.

@@ -172,6 +172,10 @@ To directly access the authentication ``hvac`` client connector, fetch it from t
 Changelog
 =========
 
+0.4.2
++++++
+- Fix Django 2.0 Deprecation warnings.
+
 0.4.1
 +++++
 - Fix bug with SET ROLE when using the PostGIS database wrapper.

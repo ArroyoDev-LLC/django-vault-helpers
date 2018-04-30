@@ -172,6 +172,11 @@ To directly access the authentication ``hvac`` client connector, fetch it from t
 Changelog
 =========
 
+0.5.0
++++++
+- Cache database and AWS credentials on the file system so that a multi-threaded / multi-process system doesn't need separate credentials for each process and thread.
+- Improve security by setting the file permissions of all cache files (vault token, AWS, database) to only be readable by the owner.
+
 0.4.2
 +++++
 - Fix Django 2.0 Deprecation warnings.

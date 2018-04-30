@@ -21,6 +21,14 @@ else:
 
 
 backends = vault.list_secret_backends()
+if 'secret/' not in backends:
+    print('Enabling the K/V secret backend...')
+    vault.enable_secret_backend('kv', config={'version': 2})
+else:
+    print('K/V secret backend is already mounted.')
+
+
+backends = vault.list_secret_backends()
 if 'database/' not in backends:
     print('Enabling the database secret backend...')
     vault.enable_secret_backend('database')
@@ -36,7 +44,7 @@ vault.set_policy('vaulthelpers-sandbox', rules={
                 "read"
             ]
         },
-        "secret/vaulthelpers-sandbox/django-settings": {
+        "secret/data/vaulthelpers-sandbox/django-settings": {
             "capabilities": [
                 "read"
             ]
@@ -59,9 +67,11 @@ except hvac.exceptions.InternalServerError:
 
 
 print('Provisioning generic secret for Django settings...')
-vault.write('secret/vaulthelpers-sandbox/django-settings',
-    SECRET_KEY='my-django-secret-key',
-    SOME_API_KEY='some-secret-api-key')
+vault.write('secret/data/vaulthelpers-sandbox/django-settings',
+    data={
+        "SECRET_KEY": 'my-django-secret-key',
+        "SOME_API_KEY": 'some-secret-api-key',
+    })
 
 
 print('Provisioning PostgreSQL connection configuration...')

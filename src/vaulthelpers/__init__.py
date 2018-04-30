@@ -49,7 +49,7 @@ class VaultHelpersAppConfig(AppConfig):
 
 
 class EnvironmentConfig(object):
-    def __init__(self, path):
+    def __init__(self, path, kv_version=1):
         self.path = path
         self.config = {}
         try:
@@ -58,12 +58,17 @@ class EnvironmentConfig(object):
                 self.config = vcl.read(self.path).get('data', {})
         except Exception:
             utils.log_exception('Failed to load configuration from Vault at path {}.'.format(path))
+        # Adjust for K/V API version
+        if kv_version == 2:
+            self.config = self.config.get('data', {})
+
 
     def get(self, name, default=None):
         value = self.config.get(name)
         if value:
             return value
         return os.environ.get(name, default)
+
 
     def __getitem__(self, name):
         if name in self.config:

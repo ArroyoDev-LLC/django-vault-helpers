@@ -165,7 +165,7 @@ To directly access the authentication ``hvac`` client connector, fetch it from t
     vault_auth = vaulthelpers.common.get_vault_auth()
     verify = vaulthelpers.common.VAULT_CACERT or vaulthelpers.common.VAULT_SSL_VERIFY
     vcl = vault_auth.authenticated_client(vaulthelpers.common.VAULT_URL, verify=verify)
-    result = vcl.read('secret/apps/myaplication')
+    result = vcl.read('secret/data/apps/myaplication')
     print(result)
 
 

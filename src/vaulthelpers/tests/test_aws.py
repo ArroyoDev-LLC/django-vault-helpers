@@ -13,8 +13,11 @@ class AWSCredentialsTest(VaultHelperTest):
     def setUp(self):
         super().setUp()
         boto3.DEFAULT_SESSION = None
-        os.unlink('.vault-aws-34ac139d5002477fce8d63447f0f2569')
-        os.unlink('.vault-aws-34ac139d5002477fce8d63447f0f2569.lock')
+        try:
+            os.unlink('.vault-aws-34ac139d5002477fce8d63447f0f2569')
+            os.unlink('.vault-aws-34ac139d5002477fce8d63447f0f2569.lock')
+        except FileNotFoundError:
+            pass
         vaulthelpers.aws.init_boto3_credentials()
 
 

@@ -15,6 +15,7 @@ import portalocker
 import hashlib
 import os
 import json
+import stat
 
 set_role_warning_given = False
 
@@ -192,6 +193,8 @@ class DatabaseCredentialProvider(object):
         }
         with open(self.cache_filename, 'w') as cache_file:
             json.dump(data, cache_file, cls=DjangoJSONEncoder)
+        # Make the file only readable to the owner
+        os.chmod(self.cache_filename, stat.S_IRUSR | stat.S_IWUSR)
 
 
     def purge_credential_cache(self):

@@ -11,6 +11,7 @@ import pytz
 import json
 import hashlib
 import os
+import stat
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +77,6 @@ class VaultProvider(botocore.credentials.CredentialProvider):
                 # Try to use cached credentials if at all possible
                 credentials = self._read_credential_cache()
                 if credentials:
-                    logger.warning('Using cached AWS credentials')
                     return credentials
 
                 # No cache, so obtain new credentials
@@ -132,6 +132,8 @@ class VaultProvider(botocore.credentials.CredentialProvider):
     def _write_credential_cache(self, credentials):
         with open(self.cache_filename, 'w') as cache_file:
             json.dump(credentials, cache_file, cls=DjangoJSONEncoder)
+        # Make the file only readable to the owner
+        os.chmod(self.cache_filename, stat.S_IRUSR | stat.S_IWUSR)
 
 
     def purge_credential_cache(self):

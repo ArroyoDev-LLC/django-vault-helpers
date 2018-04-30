@@ -11,6 +11,7 @@ import os
 import pytz
 import hvac
 import threading
+import stat
 
 logger = logging.getLogger(__name__)
 
@@ -225,6 +226,8 @@ class VaultAuthenticator(object):
         }
         with open(self.token_filename, 'w') as token_file:
             json.dump(token_data, token_file, cls=DjangoJSONEncoder)
+        # Make the file only readable to the owner
+        os.chmod(self.token_filename, stat.S_IRUSR | stat.S_IWUSR)
 
 
     def purge_token_cache(self):

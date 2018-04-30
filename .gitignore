@@ -1,6 +1,7 @@
 version.txt
 .vault-token
 .vault-token.lock
+.vault-*
 
 # Created by https://www.gitignore.io/api/osx,sublimetext,python,linux,django
 

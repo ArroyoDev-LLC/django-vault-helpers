@@ -43,6 +43,7 @@ VAULT_SECRETID = os.getenv("VAULT_SECRETID")
 
 # File path to use for caching the vault token
 VAULT_TOKEN_CACHE = os.getenv("VAULT_TOKEN_CACHE", ".vault-token")
+VAULT_AWS_CACHE = os.getenv("VAULT_AWS_CACHE", ".vault-aws")
 
 # Secret path to obtain database credentials
 VAULT_DATABASE_PATH = os.environ.get("VAULT_DATABASE_PATH")

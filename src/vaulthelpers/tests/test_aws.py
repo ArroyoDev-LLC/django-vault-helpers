@@ -1,7 +1,10 @@
+from datetime import datetime, timedelta
 from freezegun import freeze_time
 from .base import VaultHelperTest
 import vaulthelpers
 import boto3
+import pytz
+import os
 import requests_mock
 
 
@@ -10,6 +13,8 @@ class AWSCredentialsTest(VaultHelperTest):
     def setUp(self):
         super().setUp()
         boto3.DEFAULT_SESSION = None
+        os.unlink('.vault-aws-34ac139d5002477fce8d63447f0f2569')
+        os.unlink('.vault-aws-34ac139d5002477fce8d63447f0f2569.lock')
         vaulthelpers.aws.init_boto3_credentials()
 
 
@@ -45,10 +50,11 @@ class AWSCredentialsTest(VaultHelperTest):
 
     @requests_mock.mock(real_http=True)
     def test_renew_sts_creds(self, rmock):
+        now = datetime.now(tz=pytz.UTC)
         self.mock_sts_creds(rmock, 'A')
 
         # Should fetch credentials
-        with freeze_time("2017-01-01T06:00:00Z"):
+        with freeze_time(now):
             creds = boto3._get_default_session().get_credentials()
             self.assertEqual(creds.access_key, "access-key-A")
             self.assertEqual(creds.secret_key, "secret-key-A")
@@ -58,7 +64,7 @@ class AWSCredentialsTest(VaultHelperTest):
         self.mock_sts_creds(rmock, 'B')
 
         # Should fetch credentials again, since the time changed
-        with freeze_time("2017-01-01T08:00:00Z"):
+        with freeze_time(now + timedelta(hours=2)):
             creds = boto3._get_default_session().get_credentials()
             self.assertTrue(creds.refresh_needed())
             self.assertEqual(creds.access_key, "access-key-B")
@@ -68,10 +74,11 @@ class AWSCredentialsTest(VaultHelperTest):
 
     @requests_mock.mock(real_http=True)
     def test_sts_creds_auto_refresh(self, rmock):
+        now = datetime.now(tz=pytz.UTC)
         self.mock_sts_creds(rmock, 'A')
 
         # Should fetch credentials
-        with freeze_time("2017-01-01T06:00:00Z"):
+        with freeze_time(now):
             creds = boto3._get_default_session().get_credentials()
             self.assertEqual(creds.access_key, "access-key-A")
             self.assertEqual(creds.secret_key, "secret-key-A")
@@ -81,7 +88,7 @@ class AWSCredentialsTest(VaultHelperTest):
         self.mock_sts_creds(rmock, 'B')
 
         # Should fetch credentials again, since the time changed
-        with freeze_time("2017-01-01T08:00:00Z"):
+        with freeze_time(now + timedelta(hours=2)):
             self.assertEqual(creds.access_key, "access-key-B")
             self.assertEqual(creds.secret_key, "secret-key-B")
             self.assertEqual(creds.token, "security-token-B")

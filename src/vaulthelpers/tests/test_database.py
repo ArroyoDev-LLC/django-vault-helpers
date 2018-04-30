@@ -99,7 +99,7 @@ class DatabaseConnectionTest(VaultHelperTest):
 
         # Close the connection to force a reconnect
         connection.close()
-        # connection.ensure_connection()
+        connection.settings_dict.reset_credentials()
 
         # Ensure the DB connection is still usable
         self.assertEqual('root', User.objects.get(username='root').username)
@@ -113,3 +113,20 @@ class DatabaseConnectionTest(VaultHelperTest):
 
         # Make sure the first session user isn't the same as the second (to prove that the test actually forced a credential re-fetch)
         self.assertNotEqual(session_user_A, session_user_B)
+
+        # Close the connection to force another reconnect, but this time without destroying the user
+        connection.close()
+        connection.settings_dict.reset_credentials()
+
+        # Ensure the DB connection is still usable
+        self.assertEqual('root', User.objects.get(username='root').username)
+
+        # Get the current and session user
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT SESSION_USER, CURRENT_USER;")
+            session_user_C, current_user_C = cursor.fetchone()
+        self.assertRegex(session_user_C, r'^v\-approle\-vaulthel\-')
+        self.assertEqual(current_user_C, 'vaulthelpers')
+
+        # Make sure the second session user **is** the same as the third (to prove that the credential caching works)
+        self.assertEqual(session_user_B, session_user_C)

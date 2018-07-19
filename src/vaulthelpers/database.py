@@ -152,7 +152,7 @@ class DatabaseCredentialProvider(object):
         client = common.get_vault_auth().authenticated_client()
         params = { "lease_id": self._lease_id }
         try:
-            resp = client._put('/v1/sys/leases/lookup', json=params).json()
+            resp = client.adapter.put('/v1/sys/leases/lookup', json=params).json()
         except InvalidRequest:
             return 0
         return resp.get('data', {}).get('ttl', 0)

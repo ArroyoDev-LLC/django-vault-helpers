@@ -6,26 +6,17 @@ cache:
   paths:
     - $HOME/.cache/pip
 
-test_python34:
-  stage: test
-  script:
-    - rm docker-compose.override.yml
-    - docker-compose pull
-    - docker-compose build --pull
-    - docker-compose run --rm test tox --skip-missing-interpreters
-
-test_python35:
-  stage: test
-  script:
-    - rm docker-compose.override.yml
-    - docker-compose pull
-    - docker-compose build --pull
-    - docker-compose run --rm test tox --skip-missing-interpreters
+before_script:
+  - rm docker-compose.override.yml
+  - export COMPOSE_PROJECT_NAME="vaulthelpers${CI_JOB_ID}"
+  - docker-compose pull
+  - docker-compose build --pull
 
 test_python36:
   stage: test
   script:
-    - rm docker-compose.override.yml
-    - docker-compose pull
-    - docker-compose build --pull
-    - docker-compose run --rm test tox --skip-missing-interpreters
+    - docker-compose run --rm test tox -e 'py36-django{111,200}'
+
+after_script:
+  - docker-compose stop || true
+  - docker-compose down -v || true

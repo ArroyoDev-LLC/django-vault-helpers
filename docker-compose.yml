@@ -25,6 +25,10 @@ services:
       VAULT_ROLEID: 63ed0933-55a8-6f75-3697-c6a0833b1ff1
       VAULT_SECRETID: 880bfece-8bb6-6c82-7b41-4a90a3ebea1d
 
+      VAULT_TOKEN_CACHE: "/tmp/.vault-token"
+      VAULT_AWS_CACHE: "/tmp/.vault-aws"
+      VAULT_DB_CACHE: "/tmp/.vault-db"
+
       VAULT_URL: http://vault:8200/
       VAULT_CACERT:
       VAULT_SKIP_VERIFY: 'yes'

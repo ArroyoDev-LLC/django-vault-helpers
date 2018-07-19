@@ -199,7 +199,10 @@ class DatabaseCredentialProvider(object):
 
     def purge_credential_cache(self):
         with portalocker.Lock(self.lock_filename, timeout=10):
-            os.unlink(self.cache_filename)
+            try:
+                os.unlink(self.cache_filename)
+            except FileNotFoundError:
+                pass
 
 
 

@@ -1,11 +1,6 @@
 stages:
   - test
 
-cache:
-  key: "$CI_PROJECT_NAME"
-  paths:
-    - $HOME/.cache/pip
-
 before_script:
   - rm docker-compose.override.yml
   - export COMPOSE_PROJECT_NAME="vaulthelpers${CI_JOB_ID}"

@@ -232,7 +232,10 @@ class VaultAuthenticator(object):
 
     def purge_token_cache(self):
         with portalocker.Lock(self.lock_filename, timeout=10):
-            os.unlink(self.token_filename)
+            try:
+                os.unlink(self.token_filename)
+            except FileNotFoundError:
+                pass
 
 
 

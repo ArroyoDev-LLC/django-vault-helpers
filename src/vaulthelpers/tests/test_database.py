@@ -30,7 +30,7 @@ class DatabaseConnectionTest(VaultHelperTest):
 
         # Make sure the output configuration merged everything together correctly.
         self.assertEqual(config['NAME'], 'vaulthelpers')
-        self.assertRegex(config['USER'], r'^v-approle-vaulthel-([a-z0-9]+)-([0-9]+)$')
+        self.assertRegex(config['USER'], r'^v-approle-vaulthel-([a-zA-Z0-9]+)-([0-9]+)$')
         self.assertRegex(config['PASSWORD'], r'^.+$')
         self.assertEqual(config['HOST'], 'postgres')
         self.assertEqual(config['PORT'], 5432)

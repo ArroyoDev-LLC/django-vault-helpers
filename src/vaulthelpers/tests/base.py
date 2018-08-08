@@ -14,12 +14,12 @@ class VaultHelperTest(TransactionTestCase):
 
         # Revoke all the non-root tokens in Vault
         root_client = self.get_root_client()
-        accessors = root_client._get('/v1/auth/token/accessors?list=true').json()['data']['keys']
+        accessors = root_client.adapter.get('/v1/auth/token/accessors?list=true').json()['data']['keys']
         for accessor in accessors:
             params = { 'accessor': accessor }
-            token_meta = root_client._post('/v1/auth/token/lookup-accessor', json=params).json()
+            token_meta = root_client.adapter.post('/v1/auth/token/lookup-accessor', json=params).json()
             if token_meta['data']['display_name'] == 'approle':
-                root_client._post('/v1/auth/token/revoke-accessor', json=params)
+                root_client.adapter.post('/v1/auth/token/revoke-accessor', json=params)
 
         # Reset the vault cache
         vaulthelpers.common.reset_vault()

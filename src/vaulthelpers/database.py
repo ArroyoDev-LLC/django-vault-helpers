@@ -281,27 +281,40 @@ def monkeypatch_django():
         if self.connection is None:
             with self.wrap_database_errors:
                 try:
+                    # Try to connect
                     self.connect()
                 except Exception as e:
-                    if isinstance(e, _operror_types):
-                        max_retries = self.settings_dict.get('OPTIONS', {}).get('vault_connection_retries', 3)
-                        if hasattr(self, "_vault_retries") and self._vault_retries >= max_retries:
-                            logger.error("Retrying with new credentials from Vault didn't help {}".format(str(e)))
-                            raise
-                        else:
-                            logger.info("Database connection failed. Refreshing credentials from Vault")
-                            if not hasattr(self.settings_dict, 'refresh_credentials'):
-                                self.settings_dict = get_config(self.settings_dict)
-                            if hasattr(self, "_vault_retries") and self._vault_retries >= 1:
-                                logger.info("Purging credential cache before refreshing credentials from Vault")
-                                self.settings_dict.purge_credential_cache()
-                            self.settings_dict.refresh_credentials()
-                            self._vault_retries = 1
-                            self.ensure_connection()
-                    else:
+                    # See if this is a known error type or not
+                    if not isinstance(e, _operror_types):
                         logger.debug("Database connection failed, but not due to a known error {}".format(str(e)))
                         raise
+
+                    # Get the max number of retry attempts
+                    max_retries = self.settings_dict.get('OPTIONS', {}).get('vault_connection_retries', 3)
+
+                    # If the max retry count has been exceeded, raise the error
+                    if hasattr(self, "_vault_retries") and self._vault_retries >= max_retries:
+                        logger.error("Retrying with new credentials from Vault didn't help {}".format(str(e)))
+                        raise
+
+                    # Try to refresh Vault credentials and attempt another connection
+                    logger.info("Database connection failed. Refreshing credentials from Vault")
+                    if not hasattr(self.settings_dict, 'refresh_credentials'):
+                        self.settings_dict = get_config(self.settings_dict)
+
+                    # If we've already retried once, purge the cache and try again
+                    if hasattr(self, "_vault_retries") and self._vault_retries >= 1:
+                        logger.info("Purging credential cache before refreshing credentials from Vault")
+                        self.settings_dict.purge_credential_cache()
+
+                    # Refresh the credentials from Vault and re-connect
+                    self.settings_dict.refresh_credentials()
+                    if not hasattr(self, "_vault_retries"):
+                        self._vault_retries = 0
+                    self._vault_retries += 1
+                    self.ensure_connection()
                 else:
+                    # After a successful connection, reset the retry count back down to 0
                     self._vault_retries = 0
 
     logger.debug("Installed vaulthelpers database connection helper into BaseDatabaseWrapper")

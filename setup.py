@@ -28,7 +28,7 @@ extras_require = {
         'dj-database-url>=0.4.2',
     ],
     'sentry': [
-        'raven>=6.0.0',
+        'sentry-sdk>=0.5.5',
     ],
     'development': [
         'flake8>=3.3.0',

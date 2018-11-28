@@ -20,7 +20,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.flatpages',
     'django.contrib.postgres',
-    # 'raven.contrib.django.raven_compat',
     'vaulthelpers',
 ]
 

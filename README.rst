@@ -172,6 +172,12 @@ To directly access the authentication ``hvac`` client connector, fetch it from t
 Changelog
 =========
 
+0.6.0
++++++
+- Add support for Django 2.1
+- Add support for Python 3.7
+- Migrate from Sentry's old SDK (raven) to their new SDK (sentry-sdk).
+
 0.5.0
 +++++
 - Cache database and AWS credentials on the file system so that a multi-threaded / multi-process system doesn't need separate credentials for each process and thread.

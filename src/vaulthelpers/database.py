@@ -90,22 +90,25 @@ class DatabaseCredentialProvider(object):
 
 
     def refresh_creds(self, lease_grace_period=DEFAULT_GRACE_SECONDS):
+        logger.info('Beginning database credential refresh. Obtaining lock file.')
         # Obtain a lock file so prevent races between multiple processes trying to obtain credentials at the same time
         with portalocker.Lock(self.lock_filename, timeout=10):
+            logger.info('Obtained lock file.')
             # Try to use cached credentials if at all possible
             data = self._read_credential_cache(lease_grace_period)
             if data:
                 self._creds = data['creds']
                 self._lease_id = data['lease_id']
                 self._lease_expires = data['lease_expiration']
-                logger.info("Loaded cached Vault DB credentials from filesystem {path}: lease_id={lease_id}, expires={expires}, username={username}".format(
-                    path=self.secret_path,
-                    lease_id=self._lease_id,
-                    expires=self._lease_expires.isoformat(),
-                    username=self._creds['username']))
+                logger.info("Loaded cached Vault DB credentials from filesystem %s: lease_id=[%s], expires=[%s], username=[%s]",
+                    self.secret_path,
+                    self._lease_id,
+                    self._lease_expires.isoformat(),
+                    self._creds['username'])
                 return
 
             # No cache, so obtain new credentials
+            logger.info('Failed to load credentials from cache. Getting authenticated Vault client.')
             vcl = common.get_vault_auth().authenticated_client()
             try:
                 result = vcl.read(self.secret_path)
@@ -121,30 +124,47 @@ class DatabaseCredentialProvider(object):
             self._lease_id = result['lease_id']
             self._lease_expires = datetime.now(tz=pytz.UTC) + timedelta(seconds=result['lease_duration'])
             self._write_credential_cache(self._creds, self._lease_id, self._lease_expires)
-        logger.info("Loaded new Vault DB credentials from {path}: lease_id={lease_id}, expires={expires}, username={username}".format(
-            path=self.secret_path,
-            lease_id=self._lease_id,
-            expires=self._lease_expires.isoformat(),
-            username=self._creds['username']))
+        logger.info("Loaded new Vault DB credentials from %s: lease_id=[%s], expires=[%s], username=[%s]",
+            self.secret_path,
+            self._lease_id,
+            self._lease_expires.isoformat(),
+            self._creds['username'])
 
 
     def refresh_creds_if_needed(self, lease_grace_period=DEFAULT_GRACE_SECONDS):
+        logger.info('Determining is database credential refresh is needed. grace_period=[%s]', lease_grace_period)
+
         refresh = False
         # If we have no credentials at all, refresh the credentials.
         if self._creds is None:
+            logger.info('Database credential refresh is needed because self._creds is None')
             refresh = True
 
         # If theres less than {lease_grace_period} seconds left in the lease, refresh the credentials.
-        if self._lease_expires is not None and datetime.now(tz=pytz.UTC) >= (self._lease_expires - timedelta(seconds=lease_grace_period)):
+        now = datetime.now(tz=pytz.UTC)
+        graceful_expires = None
+        if self._lease_expires is not None:
+            graceful_expires = (self._lease_expires - timedelta(seconds=lease_grace_period))
+        if graceful_expires is not None and now >= graceful_expires:
+            logger.info('Database credential refresh is needed because self._lease_expires is within grace period. now=[%s], expires=[%s]',
+                now,
+                self._lease_expires)
             refresh = True
 
         # If lease got revoked, refresh the credentials.
-        if self.fetch_lease_ttl() <= lease_grace_period:
+        lease_ttl = self.fetch_lease_ttl()
+        if lease_ttl <= lease_grace_period:
+            logger.info('Database credential refresh is needed because lease_ttl is within grace period. lease_ttl=[%s], grace_period=[%s]',
+                lease_ttl,
+                lease_grace_period)
             refresh = True
 
         # If needed, refresh.
         if refresh:
+            logger.info('Database credential refresh is needed. lease_ttl=[%s], grace_period=[%s]', lease_ttl, lease_grace_period)
             self.refresh_creds(lease_grace_period)
+        else:
+            logger.info('Database credential refresh is not needed. lease_ttl=[%s], grace_period=[%s]', lease_ttl, lease_grace_period)
         return
 
 
@@ -153,9 +173,12 @@ class DatabaseCredentialProvider(object):
         params = { "lease_id": self._lease_id }
         try:
             resp = client.adapter.put('/v1/sys/leases/lookup', json=params).json()
-        except InvalidRequest:
+        except InvalidRequest as e:
+            logger.info('Failed to fetch lease TTL from Vault. Assuming lease is expire. lease_id=[%s], error=[%s]', self._lease_id, e)
             return 0
-        return resp.get('data', {}).get('ttl', 0)
+        ttl = resp.get('data', {}).get('ttl', 0)
+        logger.info('Fetched lease ID from Vault. lease_id=[%s], ttl=[%s]', self._lease_id, ttl)
+        return ttl
 
 
     def _read_credential_cache(self, lease_grace_period):
@@ -163,25 +186,31 @@ class DatabaseCredentialProvider(object):
         try:
             with open(self.cache_filename, 'r') as cache_file:
                 data = json.load(cache_file)
-        except OSError:
+        except OSError as e:
+            logger.info('Failed to read database credential cache from disk. error=[%s]', e)
             return None
 
         # Parse the credentials expiration time
         try:
             data['lease_expiration'] = parse(data.get('lease_expiration'))
-        except ValueError:
+        except ValueError as e:
+            logger.info('Failed to read database credential cache because lease_expiration is invalid. error=[%s]', e)
             return None
 
         # If no expiry time was found, something went wrong. Return None
         if not data['lease_expiration']:
+            logger.info('Failed to read database credential cache because lease_expiration is missing.')
             return None
 
         # Check if the credentials are expired. If they are, return None
+        now = datetime.now(tz=pytz.UTC)
         refresh_threshold = (data['lease_expiration'] - timedelta(seconds=lease_grace_period))
-        if datetime.now(tz=pytz.UTC) > refresh_threshold:
+        if now > refresh_threshold:
+            logger.info('Failed to read database credential cache because cached credentials are expired. now=[%s], expired=[%s]', now, refresh_threshold)
             return None
 
         # Finally, return the cached data
+        logger.info('Returning cached dataabase credentials. expires=[%s]', refresh_threshold)
         return data
 
 
@@ -198,10 +227,12 @@ class DatabaseCredentialProvider(object):
 
 
     def purge_credential_cache(self):
+        logger.info('Attempting to purge database credential cache. path=[%s]', self.cache_filename)
         with portalocker.Lock(self.lock_filename, timeout=10):
             try:
                 os.unlink(self.cache_filename)
             except FileNotFoundError:
+                logger.info('Failed to purge Database credential cache because cache file was not found. path=[%s]', self.cache_filename)
                 pass
 
 
@@ -275,7 +306,7 @@ def get_config(extra_config={}):
 def monkeypatch_django():
     def ensure_connection_with_retries(self):
         if self.connection is not None and self.connection.closed:
-            logger.debug("Failed connection detected")
+            logger.info("Failed database connection detected")
             self.connection = None
 
         if self.connection is None:
@@ -286,7 +317,7 @@ def monkeypatch_django():
                 except Exception as e:
                     # See if this is a known error type or not
                     if not isinstance(e, _operror_types):
-                        logger.debug("Database connection failed, but not due to a known error {}".format(str(e)))
+                        logger.warning("Database connection failed, but not due to a known error. errors=[%s]", e)
                         raise
 
                     # Get the max number of retry attempts
@@ -294,17 +325,18 @@ def monkeypatch_django():
 
                     # If the max retry count has been exceeded, raise the error
                     if hasattr(self, "_vault_retries") and self._vault_retries >= max_retries:
-                        logger.error("Retrying with new credentials from Vault didn't help {}".format(str(e)))
+                        logger.error("Retrying with new credentials from Vault didn't help. errors=[%s]", e)
                         raise
 
                     # Try to refresh Vault credentials and attempt another connection
-                    logger.info("Database connection failed. Refreshing credentials from Vault")
+                    logger.info("Database connection failed. Refreshing credentials from Vault.")
                     if not hasattr(self.settings_dict, 'refresh_credentials'):
+                        logger.info("Installed vaulthelpers database connection settings_dict")
                         self.settings_dict = get_config(self.settings_dict)
 
                     # If we've already retried once, purge the cache and try again
                     if hasattr(self, "_vault_retries") and self._vault_retries >= 1:
-                        logger.info("Purging credential cache before refreshing credentials from Vault")
+                        logger.info("Purging credential cache before refreshing credentials from Vault.")
                         self.settings_dict.purge_credential_cache()
 
                     # Refresh the credentials from Vault and re-connect
@@ -317,7 +349,7 @@ def monkeypatch_django():
                     # After a successful connection, reset the retry count back down to 0
                     self._vault_retries = 0
 
-    logger.debug("Installed vaulthelpers database connection helper into BaseDatabaseWrapper")
+    logger.info("Installed vaulthelpers database connection helper into BaseDatabaseWrapper")
     django_db_base.BaseDatabaseWrapper.ensure_connection = ensure_connection_with_retries
 
 

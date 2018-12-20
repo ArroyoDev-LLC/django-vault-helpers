@@ -258,6 +258,7 @@ class DjangoAutoRefreshDBCredentialsDict(dict):
 
     def purge_credential_cache(self):
         self._provider.purge_credential_cache()
+        self.reset_credentials()
 
 
     def __str__(self) -> str:

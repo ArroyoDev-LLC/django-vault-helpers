@@ -350,7 +350,6 @@ def monkeypatch_django():
                     # After a successful connection, reset the retry count back down to 0
                     self._vault_retries = 0
 
-    logger.info("Installed vaulthelpers database connection helper into BaseDatabaseWrapper")
     django_db_base.BaseDatabaseWrapper.ensure_connection = ensure_connection_with_retries
 
 

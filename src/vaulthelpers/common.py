@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 # Constants
 AUTH_TYPE_APPID = 'app-id'
 AUTH_TYPE_APPROLE = 'approle'
+AUTH_TYPE_AWS_IAM = 'aws'
+AUTH_TYPE_KUBERNETES = 'kubernetes'
 AUTH_TYPE_SSL = 'ssl'
 AUTH_TYPE_TOKEN = 'token'
 
@@ -33,6 +35,15 @@ VAULT_TOKEN = os.getenv("VAULT_TOKEN")
 # Vault Authentication Option: AppID
 VAULT_APPID = os.getenv("VAULT_APPID")
 VAULT_USERID = os.getenv("VAULT_USERID")
+
+# Vault Authentication Option: AWS IAM
+VAULT_IAM_HEADER_VALUE = os.getenv('VAULT_IAM_HEADER_VALUE')
+VAULT_IAM_ROLE = os.getenv('VAULT_IAM_ROLE')
+VAULT_IAM_REGION = os.getenv('AWS_DEFAULT_REGION')
+
+# Vault Authentication Option: Kubernetes
+VAULT_KUBERNETES_ROLE = os.getenv('VAULT_KUBERNETES_ROLE')
+VAULT_KUBERNETES_TOKEN_PATH = os.getenv('VAULT_KUBERNETES_TOKEN_PATH')
 
 # Vault Authentication Option: SSL Client Certificate
 VAULT_SSLCERT = os.getenv("VAULT_SSLCERT")
@@ -69,9 +80,11 @@ class VaultAuthenticator(object):
         has_url = bool(VAULT_URL)
         has_token = bool(VAULT_TOKEN)
         has_appid = (VAULT_APPID and VAULT_USERID)
+        has_iam = (VAULT_IAM_HEADER_VALUE and VAULT_IAM_ROLE)
+        has_kube = (VAULT_KUBERNETES_ROLE and VAULT_KUBERNETES_TOKEN_PATH)
         has_ssl = (VAULT_SSLCERT and VAULT_SSLKEY)
         has_approle = (VAULT_ROLEID and VAULT_SECRETID)
-        return has_url and (has_token or has_appid or has_ssl or has_approle)
+        return has_url and (has_token or has_appid or has_iam or has_kube or has_ssl or has_approle)
 
 
     @classmethod
@@ -80,6 +93,10 @@ class VaultAuthenticator(object):
             return cls.token(VAULT_URL, VAULT_TOKEN)
         elif VAULT_APPID and VAULT_USERID:
             return cls.app_id(VAULT_URL, VAULT_APPID, VAULT_USERID)
+        elif VAULT_IAM_HEADER_VALUE and VAULT_IAM_ROLE:
+            return cls.aws_iam(VAULT_URL, VAULT_IAM_HEADER_VALUE, VAULT_IAM_ROLE)
+        elif VAULT_KUBERNETES_ROLE and VAULT_KUBERNETES_TOKEN_PATH:
+            return cls.kubernetes(VAULT_URL, VAULT_KUBERNETES_ROLE, VAULT_KUBERNETES_TOKEN_PATH)
         elif VAULT_ROLEID and VAULT_SECRETID:
             return cls.approle(VAULT_URL, VAULT_ROLEID, VAULT_SECRETID)
         elif VAULT_SSLCERT and VAULT_SSLKEY:
@@ -97,6 +114,20 @@ class VaultAuthenticator(object):
     def approle(cls, url, role_id, secret_id=None, mountpoint=AUTH_TYPE_APPROLE):
         creds = (role_id, secret_id)
         return cls(url, creds, AUTH_TYPE_APPROLE, mountpoint)
+
+
+    @classmethod
+    def aws_iam(cls, url, header_value, role):
+        creds = (header_value, role)
+        return cls(url, creds, AUTH_TYPE_AWS_IAM, AUTH_TYPE_AWS_IAM)
+
+
+    @classmethod
+    def kubernetes(cls, url, role, token_path):
+        with open(token_path, 'r') as token_file:
+            token = token_file.read()
+        creds = (role, token)
+        return cls(url, creds, AUTH_TYPE_KUBERNETES, AUTH_TYPE_KUBERNETES)
 
 
     @classmethod
@@ -172,6 +203,29 @@ class VaultAuthenticator(object):
         elif self.auth_type == AUTH_TYPE_APPID:
             client = hvac.Client(url=self.url, verify=self.ssl_verify)
             client.auth_app_id(*self.credentials)
+
+        elif self.auth_type == AUTH_TYPE_AWS_IAM:
+            import boto3
+            session = boto3.Session()
+            credentials = session.get_credentials()
+            client = hvac.Client(url=self.url, verify=self.ssl_verify)
+            client.auth_aws_iam(
+                access_key=credentials.access_key,
+                secret_key=credentials.secret_key,
+                session_token=credentials.token,
+                header_value=self.credentials[0],
+                mount_point=self.auth_mount,
+                role=self.credentials[1],
+                use_token=True,
+                region=VAULT_IAM_REGION)
+
+        elif self.auth_type == AUTH_TYPE_KUBERNETES:
+            client = hvac.Client(url=self.url, verify=self.ssl_verify)
+            client.auth_kubernetes(
+                role=self.credentials[0],
+                jwt=self.credentials[1],
+                use_token=True,
+                mount_point=self.auth_mount)
 
         elif self.auth_type == AUTH_TYPE_APPROLE:
             client = hvac.Client(url=self.url, verify=self.ssl_verify)

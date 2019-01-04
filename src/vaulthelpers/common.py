@@ -39,7 +39,7 @@ VAULT_USERID = os.getenv("VAULT_USERID")
 # Vault Authentication Option: AWS IAM
 VAULT_IAM_HEADER_VALUE = os.getenv('VAULT_IAM_HEADER_VALUE')
 VAULT_IAM_ROLE = os.getenv('VAULT_IAM_ROLE')
-VAULT_IAM_REGION = os.getenv('AWS_DEFAULT_REGION')
+VAULT_IAM_REGION = os.getenv('VAULT_IAM_REGION', 'us-east-1')  # This is the signature signing region, not the endpoint region
 
 # Vault Authentication Option: Kubernetes
 VAULT_KUBERNETES_ROLE = os.getenv('VAULT_KUBERNETES_ROLE')

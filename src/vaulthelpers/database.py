@@ -16,6 +16,7 @@ import hashlib
 import os
 import json
 import stat
+import time
 
 set_role_warning_given = False
 
@@ -340,11 +341,18 @@ def monkeypatch_django():
                         logger.info("Purging credential cache before refreshing credentials from Vault.")
                         self.settings_dict.purge_credential_cache()
 
-                    # Refresh the credentials from Vault and re-connect
+                    # Refresh the credentials from Vault
                     self.settings_dict.refresh_credentials()
                     if not hasattr(self, "_vault_retries"):
                         self._vault_retries = 0
                     self._vault_retries += 1
+
+                    # Pause before attempting to connect with new credentials. Sometimes needed to allow the new user
+                    # from Vault to replicate to DB followers.
+                    if common.VAULT_DATABASE_RETRY_DELAY > 0:
+                        time.sleep(common.VAULT_DATABASE_RETRY_DELAY)
+
+                    # Re-connect
                     self.ensure_connection()
                 else:
                     # After a successful connection, reset the retry count back down to 0

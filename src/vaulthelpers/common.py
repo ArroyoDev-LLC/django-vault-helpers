@@ -60,6 +60,7 @@ VAULT_DB_CACHE = os.getenv("VAULT_DB_CACHE", ".vault-db")
 
 # Secret path to obtain database credentials
 VAULT_DATABASE_PATH = os.environ.get("VAULT_DATABASE_PATH")
+VAULT_DATABASE_RETRY_DELAY = float(os.environ.get("VAULT_DATABASE_RETRY_DELAY", '2'))
 
 # Secret path to obtain AWS credentials
 VAULT_AWS_PATH = os.environ.get("VAULT_AWS_PATH")

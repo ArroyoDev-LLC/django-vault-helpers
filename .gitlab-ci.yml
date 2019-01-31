@@ -9,6 +9,8 @@ before_script:
 
 test_python36:
   stage: test
+  tags:
+    - docker-compose
   script:
     - docker-compose run --rm test tox -e 'py36-django{111,200,210}'
 

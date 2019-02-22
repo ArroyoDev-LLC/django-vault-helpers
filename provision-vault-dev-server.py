@@ -12,32 +12,33 @@ vault = hvac.Client(
     verify=False)
 
 
-backends = vault.list_auth_backends()
+# backends = vault.list_auth_backends()
+backends = vault.sys.list_auth_methods()
 if 'approle/' not in backends:
     print('Enabling the approle auth backend...')
-    vault.enable_auth_backend('approle')
+    vault.sys.enable_auth_method('approle')
 else:
     print('AppRole auth backend is already mounted.')
 
 
-backends = vault.list_secret_backends()
+backends = vault.sys.list_mounted_secrets_engines()
 if 'secret/' not in backends:
     print('Enabling the K/V secret backend...')
-    vault.enable_secret_backend('kv', config={'version': 2})
+    vault.sys.enable_secrets_engine('kv', config={'version': 2})
 else:
     print('K/V secret backend is already mounted.')
 
 
-backends = vault.list_secret_backends()
+backends = vault.sys.list_mounted_secrets_engines()
 if 'database/' not in backends:
     print('Enabling the database secret backend...')
-    vault.enable_secret_backend('database')
+    vault.sys.enable_secrets_engine('database')
 else:
     print('Database secret backend is already mounted.')
 
 
 print('Provisioning policy for Django...')
-vault.set_policy('vaulthelpers-sandbox', rules={
+vault.sys.create_or_update_policy('vaulthelpers-sandbox', policy={
     "path": {
         "database/creds/vaulthelpers-sandbox": {
             "capabilities": [

@@ -172,6 +172,16 @@ To directly access the authentication ``hvac`` client connector, fetch it from t
 Changelog
 =========
 
+0.8.0
++++++
+- Add background daemon threads that attempt to automatically renew leases for the cached Vault token and the DB credential lease.
+- Add management command to revoke the cached Vault token.
+
+0.7.0
++++++
+- Add support for AWS IAM and Kubernetes auth methods
+- Add more verbose logging to database module to help debug connection failures
+
 0.6.0
 +++++
 - Add support for Django 2.1

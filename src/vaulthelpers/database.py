@@ -19,6 +19,7 @@ import os
 import json
 import stat
 import time
+import random
 
 set_role_warning_given = False
 
@@ -184,7 +185,7 @@ class DatabaseCredentialProvider(object):
         return ttl
 
 
-    def renew_lease(self, lease_grace_period):
+    def renew_lease(self):
         logger.info('Attempting to renew credential lease.')
         with portalocker.Lock(self.lock_filename, timeout=10):
             # Read the current lease data from disk
@@ -195,7 +196,7 @@ class DatabaseCredentialProvider(object):
             # Check if we still need to renew the lease
             now = datetime.now(tz=pytz.UTC)
             old_expiry = data['lease_expiration']
-            refresh_threshold = (old_expiry - timedelta(seconds=lease_grace_period))
+            refresh_threshold = (old_expiry - timedelta(seconds=(DEFAULT_GRACE_SECONDS + DEFAULT_RENEW_INTERVAL)))
             if now > refresh_threshold:
                 logger.info('Not renewing credential lease because the current expiry time is acceptable. now=[%s], expires=[%s]', now, old_expiry)
                 return True
@@ -292,7 +293,7 @@ class DjangoAutoRefreshDBCredentialsDict(dict):
         self["USER"] = self._provider.username
         self["PASSWORD"] = self._provider.password
         # Start a background thread to keep the creds fresh
-        self.start_background_lease_renewer(lease_grace_period, lease_renew_interval)
+        self.start_background_lease_renewer(lease_renew_interval)
 
 
     def reset_credentials(self):
@@ -306,23 +307,33 @@ class DjangoAutoRefreshDBCredentialsDict(dict):
         self.reset_credentials()
 
 
-    def start_background_lease_renewer(self, lease_grace_period, interval):
-        daemon_thread = Thread(
+    def start_background_lease_renewer(self, interval):
+        if getattr(self, 'daemon_thread', None) and self.daemon_thread.isAlive():
+            return
+        self.daemon_thread = Thread(
             target=self.start_lease_renewer,
-            args=(lease_grace_period, interval),
+            args=(interval, ),
             daemon=True)
-        daemon_thread.start()
+        self.daemon_thread.start()
 
 
-    def start_lease_renewer(self, lease_grace_period, interval):
+    def start_lease_renewer(self, interval):
         loop = asyncio.new_event_loop()
 
         def _schedule():
-            logger.info('Will attempt to renew database credential lease in %s seconds', interval)
-            loop.call_later(interval, _renew)
+            jitter = (interval / 5)
+            min_interval = interval - jitter
+            max_interval = interval + jitter
+            in_seconds = random.randrange(min_interval, max_interval)
+            logger.info('Will attempt to renew database credential lease in %s seconds', in_seconds)
+            loop.call_later(in_seconds, _renew)
 
         def _renew():
-            success = self._provider.renew_lease(lease_grace_period)
+            success = True
+            try:
+                success = self._provider.renew_lease()
+            except Exception as e:
+                logger.exception('Failed to renew Vault token lease. error=[%s]', e)
             if success:
                 _schedule()
             else:

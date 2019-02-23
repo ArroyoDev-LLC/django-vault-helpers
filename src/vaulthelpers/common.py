@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 from django.core.serializers.json import DjangoJSONEncoder
+from threading import Thread
 from .exceptions import VaultConfigurationError, VaultCredentialProviderError
+import asyncio
 import distutils.util
 import dateutil.parser
 import portalocker
@@ -12,6 +14,7 @@ import pytz
 import hvac
 import threading
 import stat
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -22,12 +25,15 @@ AUTH_TYPE_AWS_IAM = 'aws'
 AUTH_TYPE_KUBERNETES = 'kubernetes'
 AUTH_TYPE_SSL = 'ssl'
 AUTH_TYPE_TOKEN = 'token'
+TOKEN_REFRESH_SECONDS = (60 * 10)
+TOKEN_RENEW_INTERVAL = (60 * 5)
 
 # Basic Vault configuration
 VAULT_URL = os.environ.get('VAULT_URL')
 VAULT_CACERT = os.environ.get('VAULT_CACERT')
 VAULT_SSL_VERIFY = not bool(distutils.util.strtobool(os.environ.get('VAULT_SKIP_VERIFY', 'no')))
 VAULT_DEBUG = bool(distutils.util.strtobool(os.environ.get('VAULT_DEBUG', 'no')))
+VAULT_TOKEN_LEASE_RENEW_SECONDS = int(os.environ.get("VAULT_TOKEN_LEASE_RENEW_SECONDS", '3600'))
 
 # Vault Authentication Option: Token
 VAULT_TOKEN = os.getenv("VAULT_TOKEN")
@@ -74,8 +80,6 @@ threadLocal = threading.local()
 
 
 class VaultAuthenticator(object):
-    TOKEN_REFRESH_SECONDS = 30
-
 
     @classmethod
     def has_envconfig(cls):
@@ -158,6 +162,8 @@ class VaultAuthenticator(object):
         self._client = None
         self._client_pid = None
         self._client_expires = None
+        # Start background thread to keep the Vault token fresh
+        self.start_background_lease_renewer(interval=TOKEN_RENEW_INTERVAL)
 
 
     @property
@@ -173,7 +179,7 @@ class VaultAuthenticator(object):
     def authenticated_client(self):
         # Is there a valid client still in memory? Try to use it.
         if self._client and self._client_pid and self._client_expires:
-            refresh_threshold = (self._client_expires - timedelta(seconds=self.TOKEN_REFRESH_SECONDS))
+            refresh_threshold = (self._client_expires - timedelta(seconds=TOKEN_REFRESH_SECONDS))
             if self._client_pid == os.getpid() and datetime.now(tz=pytz.UTC) <= refresh_threshold and self._client.is_authenticated():
                 return self._client
 
@@ -246,7 +252,76 @@ class VaultAuthenticator(object):
         return client
 
 
-    def read_token_cache(self):
+    def renew_lease(self):
+        logger.info('Attempting to renew Vault token lease.')
+        with portalocker.Lock(self.lock_filename, timeout=10):
+            # Read the current lease data from disk
+            data = self.read_token_cache(lease_grace_period=0)
+            if not data:
+                logger.info('Failed to renew lease because the Vault token cache was empty.')
+                return False
+            # Check if we still need to renew the lease
+            now = datetime.now(tz=pytz.UTC)
+            old_expiry = data['expire_time']
+            refresh_threshold = (old_expiry - timedelta(seconds=(TOKEN_REFRESH_SECONDS + TOKEN_RENEW_INTERVAL)))
+            if now > refresh_threshold:
+                logger.info('Not renewing Vault token lease because the current expiry time is acceptable. now=[%s], expires=[%s]', now, old_expiry)
+                return True
+            # Renew the lease
+            client = self.authenticated_client()
+            try:
+                result = client.renew_token(increment=VAULT_TOKEN_LEASE_RENEW_SECONDS)
+            except Exception as e:
+                logger.warning('Failed to renew Vault token lease. error=[%s]', e)
+                return False
+            # Write the result back to disk
+            self.write_token_cache(client)
+        lease_duration = result.get('auth', {}).get('lease_duration', 0)
+        new_expiry = datetime.now(tz=pytz.UTC) + timedelta(seconds=lease_duration)
+        logger.info("Renewed lease for Vault token. accessor=[%s], old_expires=[%s], new_expires=[%s]",
+            result.get('auth', {}).get('accessor', ''),
+            old_expiry.isoformat(),
+            new_expiry.isoformat())
+        return True
+
+
+    def start_background_lease_renewer(self, interval):
+        if getattr(self, 'daemon_thread', None) and self.daemon_thread.isAlive():
+            return
+        self.daemon_thread = Thread(
+            target=self.start_lease_renewer,
+            args=(interval, ),
+            daemon=True)
+        self.daemon_thread.start()
+
+
+    def start_lease_renewer(self, interval):
+        loop = asyncio.new_event_loop()
+
+        def _schedule():
+            jitter = (interval / 5)
+            min_interval = interval - jitter
+            max_interval = interval + jitter
+            in_seconds = random.randrange(min_interval, max_interval)
+            logger.info('Will attempt to renew Vault token lease in %s seconds', in_seconds)
+            loop.call_later(in_seconds, _renew)
+
+        def _renew():
+            success = True
+            try:
+                success = self.renew_lease()
+            except Exception as e:
+                logger.exception('Failed to renew Vault token lease. error=[%s]', e)
+            if success:
+                _schedule()
+            else:
+                loop.stop()
+
+        _schedule()
+        loop.run_forever()
+
+
+    def read_token_cache(self, lease_grace_period=TOKEN_REFRESH_SECONDS):
         # Try to read the cached token from the file system
         try:
             with open(self.token_filename, 'r') as token_file:
@@ -261,7 +336,7 @@ class VaultAuthenticator(object):
             return None
 
         # Check if the token is expired. If it is, return None
-        refresh_threshold = (data['expire_time'] - timedelta(seconds=self.TOKEN_REFRESH_SECONDS))
+        refresh_threshold = (data['expire_time'] - timedelta(seconds=lease_grace_period))
         if datetime.now(tz=pytz.UTC) > refresh_threshold:
             return None
 

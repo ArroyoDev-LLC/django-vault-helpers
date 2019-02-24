@@ -6,6 +6,9 @@ class Command(BaseCommand):
     help = 'Revoke the active Vault token and any associated secret leases'
 
     def handle(self, *args, **options):
-        client = common.get_vault_auth().authenticated_client()
+        authenticator = common.get_vault_auth()
+        if authenticator in None:
+            return
+        client = authenticator.authenticated_client()
         client.revoke_self_token()
         self.stdout.write('Revoked Vault token and all associated secret leases')

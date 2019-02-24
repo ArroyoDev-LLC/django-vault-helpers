@@ -192,14 +192,14 @@ class DatabaseCredentialProvider(object):
             data = self._read_credential_cache(lease_grace_period=0)
             if not data:
                 logger.info('Failed to renew lease because the credential cache was empty.')
-                return False
+                return
             # Check if we still need to renew the lease
             now = datetime.now(tz=pytz.UTC)
             old_expiry = data['lease_expiration']
             refresh_threshold = (old_expiry - timedelta(seconds=(DEFAULT_GRACE_SECONDS + DEFAULT_RENEW_INTERVAL)))
             if now < refresh_threshold:
                 logger.info('Not renewing credential lease because the current expiry time is acceptable. now=[%s], expires=[%s]', now, old_expiry)
-                return True
+                return
             # Renew the lease
             client = common.get_vault_auth().authenticated_client()
             try:
@@ -208,7 +208,7 @@ class DatabaseCredentialProvider(object):
                     increment=common.VAULT_DATABASE_LEASE_RENEW_SECONDS)
             except Exception as e:
                 logger.warning('Failed to renew credential lease. lease_id=[%s], error=[%s]', self._lease_id, e)
-                return False
+                return
             # Write the result back to disk
             self._creds = data['creds']
             self._lease_id = result['lease_id']
@@ -219,7 +219,7 @@ class DatabaseCredentialProvider(object):
             old_expiry.isoformat(),
             self._lease_expires.isoformat(),
             self._creds['username'])
-        return True
+        return
 
 
     def _read_credential_cache(self, lease_grace_period):
@@ -287,13 +287,14 @@ class DjangoAutoRefreshDBCredentialsDict(dict):
     def refresh_credentials(self):
         # Load config
         lease_grace_period = self.get('OPTIONS', {}).get('vault_lease_grace_period', DEFAULT_GRACE_SECONDS)
-        lease_renew_interval = self.get('OPTIONS', {}).get('vault_lease_renew_interval', DEFAULT_RENEW_INTERVAL)
         # Obtain creds
         self._provider.refresh_creds_if_needed(lease_grace_period)
+
+        # Start a background thread to keep the creds fresh
+        self.start_background_lease_renewer(DEFAULT_RENEW_INTERVAL)
+
         self["USER"] = self._provider.username
         self["PASSWORD"] = self._provider.password
-        # Start a background thread to keep the creds fresh
-        self.start_background_lease_renewer(lease_renew_interval)
 
 
     def reset_credentials(self):
@@ -329,15 +330,11 @@ class DjangoAutoRefreshDBCredentialsDict(dict):
             loop.call_later(in_seconds, _renew)
 
         def _renew():
-            success = True
             try:
-                success = self._provider.renew_lease()
+                self._provider.renew_lease()
             except Exception as e:
-                logger.exception('Failed to renew Vault token lease. error=[%s]', e)
-            if success:
-                _schedule()
-            else:
-                loop.stop()
+                logger.exception('Failed to renew database credential lease. error=[%s]', e)
+            _schedule()
 
         _schedule()
         loop.run_forever()

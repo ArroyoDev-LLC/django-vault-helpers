@@ -259,21 +259,21 @@ class VaultAuthenticator(object):
             data = self.read_token_cache(lease_grace_period=0)
             if not data:
                 logger.info('Failed to renew lease because the Vault token cache was empty.')
-                return False
+                return
             # Check if we still need to renew the lease
             now = datetime.now(tz=pytz.UTC)
             old_expiry = data['expire_time']
             refresh_threshold = (old_expiry - timedelta(seconds=(TOKEN_REFRESH_SECONDS + TOKEN_RENEW_INTERVAL)))
             if now < refresh_threshold:
                 logger.info('Not renewing Vault token lease because the current expiry time is acceptable. now=[%s], expires=[%s]', now, old_expiry)
-                return True
+                return
             # Renew the lease
             client = self.authenticated_client()
             try:
                 result = client.renew_token(increment=VAULT_TOKEN_LEASE_RENEW_SECONDS)
             except Exception as e:
                 logger.warning('Failed to renew Vault token lease. error=[%s]', e)
-                return False
+                return
             # Write the result back to disk
             self.write_token_cache(client)
         lease_duration = result.get('auth', {}).get('lease_duration', 0)
@@ -282,7 +282,7 @@ class VaultAuthenticator(object):
             result.get('auth', {}).get('accessor', ''),
             old_expiry.isoformat(),
             new_expiry.isoformat())
-        return True
+        return
 
 
     def start_background_lease_renewer(self, interval):
@@ -307,15 +307,11 @@ class VaultAuthenticator(object):
             loop.call_later(in_seconds, _renew)
 
         def _renew():
-            success = True
             try:
-                success = self.renew_lease()
+                self.renew_lease()
             except Exception as e:
                 logger.exception('Failed to renew Vault token lease. error=[%s]', e)
-            if success:
-                _schedule()
-            else:
-                loop.stop()
+            _schedule()
 
         _schedule()
         loop.run_forever()

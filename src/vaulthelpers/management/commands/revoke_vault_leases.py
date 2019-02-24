@@ -7,7 +7,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         authenticator = common.get_vault_auth()
-        if authenticator in None:
+        if authenticator is None:
             return
         client = authenticator.authenticated_client()
         client.revoke_self_token()

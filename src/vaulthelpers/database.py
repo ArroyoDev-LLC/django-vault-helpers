@@ -197,7 +197,7 @@ class DatabaseCredentialProvider(object):
             now = datetime.now(tz=pytz.UTC)
             old_expiry = data['lease_expiration']
             refresh_threshold = (old_expiry - timedelta(seconds=(DEFAULT_GRACE_SECONDS + DEFAULT_RENEW_INTERVAL)))
-            if now > refresh_threshold:
+            if now < refresh_threshold:
                 logger.info('Not renewing credential lease because the current expiry time is acceptable. now=[%s], expires=[%s]', now, old_expiry)
                 return True
             # Renew the lease

@@ -264,7 +264,7 @@ class VaultAuthenticator(object):
             now = datetime.now(tz=pytz.UTC)
             old_expiry = data['expire_time']
             refresh_threshold = (old_expiry - timedelta(seconds=(TOKEN_REFRESH_SECONDS + TOKEN_RENEW_INTERVAL)))
-            if now > refresh_threshold:
+            if now < refresh_threshold:
                 logger.info('Not renewing Vault token lease because the current expiry time is acceptable. now=[%s], expires=[%s]', now, old_expiry)
                 return True
             # Renew the lease

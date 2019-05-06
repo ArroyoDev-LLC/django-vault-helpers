@@ -1,19 +1,21 @@
 stages:
   - test
 
-before_script:
-  - rm docker-compose.override.yml
-  - export COMPOSE_PROJECT_NAME="vaulthelpers${CI_JOB_ID}"
-  - docker-compose pull
-  - docker-compose build --pull
+include:
+  - project: thelabnyc/gitlab-ci-templates
+    file: /ci/sast.gitlab-ci.yml
 
 test_python36:
   stage: test
   tags:
     - docker-compose
+  before_script:
+    - rm docker-compose.override.yml
+    - export COMPOSE_PROJECT_NAME="vaulthelpers${CI_JOB_ID}"
+    - docker-compose pull
+    - docker-compose build --pull
   script:
     - docker-compose run --rm test tox -e 'py36-django{111,200,210}'
-
-after_script:
-  - docker-compose stop || true
-  - docker-compose down -v || true
+  after_script:
+    - docker-compose stop || true
+    - docker-compose down -v || true

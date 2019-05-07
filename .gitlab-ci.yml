@@ -15,7 +15,13 @@ test_python36:
     - docker-compose pull
     - docker-compose build --pull
   script:
-    - docker-compose run --rm test tox -e 'py36-django{111,200,210}'
-  after_script:
-    - docker-compose stop || true
-    - docker-compose down -v || true
+    - |
+      function run_tox_tests() {
+        docker-compose run --rm test tox -e "$1";
+        docker-compose stop || true;
+        docker-compose down -v || true;
+      }
+
+    - run_tox_tests 'py36-django111'
+    - run_tox_tests 'py36-django200'
+    - run_tox_tests 'py36-django210'

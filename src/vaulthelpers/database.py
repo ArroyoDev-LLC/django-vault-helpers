@@ -174,6 +174,8 @@ class DatabaseCredentialProvider(object):
 
 
     def fetch_lease_ttl(self):
+        if not self._lease_id:
+            return 0
         client = common.get_vault_auth().authenticated_client()
         try:
             resp = client.sys.read_lease(lease_id=self._lease_id)

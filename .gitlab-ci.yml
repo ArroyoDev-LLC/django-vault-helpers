@@ -17,7 +17,7 @@ test_python36:
   script:
     - |
       function run_tox_tests() {
-        docker-compose up -d postgres vault;
+        docker-compose up postgres vault &
         sleep 10;
         docker-compose run --rm test tox -e "$1";
         docker-compose stop || true;

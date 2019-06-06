@@ -172,6 +172,10 @@ To directly access the authentication ``hvac`` client connector, fetch it from t
 Changelog
 =========
 
+0.8.1
++++++
+- Fix bug in DatabaseCredentialProvider.fetch_lease_ttl which sometimes caused Vault to panic when looking up lease TTLs.
+
 0.8.0
 +++++
 - Add background daemon threads that attempt to automatically renew leases for the cached Vault token and the DB credential lease.

@@ -5,7 +5,7 @@ include:
   - project: thelabnyc/gitlab-ci-templates
     file: /ci/sast.gitlab-ci.yml
 
-test_python36:
+test_python37:
   stage: test
   tags:
     - docker-compose
@@ -24,6 +24,6 @@ test_python36:
         docker-compose down -v || true;
       }
 
-    - run_tox_tests 'py36-django111'
-    - run_tox_tests 'py36-django200'
-    - run_tox_tests 'py36-django210'
+    - run_tox_tests 'py37-django111'
+    - run_tox_tests 'py37-django200'
+    - run_tox_tests 'py37-django210'

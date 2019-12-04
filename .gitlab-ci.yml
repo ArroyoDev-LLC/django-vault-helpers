@@ -25,5 +25,5 @@ test_python37:
       }
 
     - run_tox_tests 'py37-django111'
-    - run_tox_tests 'py37-django200'
-    - run_tox_tests 'py37-django210'
+    - run_tox_tests 'py37-django220'
+    - run_tox_tests 'py37-django300'

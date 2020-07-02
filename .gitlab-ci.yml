@@ -1,6 +1,10 @@
 stages:
   - test
 
+variables:
+  # Set SAST / DAST testing version
+  SP_VERSION: 11-10-stable
+
 include:
   - project: thelabnyc/gitlab-ci-templates
     file: /ci/sast.gitlab-ci.yml

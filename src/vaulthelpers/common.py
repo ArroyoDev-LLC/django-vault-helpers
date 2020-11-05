@@ -50,6 +50,7 @@ VAULT_IAM_REGION = os.getenv('VAULT_IAM_REGION', 'us-east-1')  # This is the sig
 # Vault Authentication Option: Kubernetes
 VAULT_KUBERNETES_ROLE = os.getenv('VAULT_KUBERNETES_ROLE')
 VAULT_KUBERNETES_TOKEN_PATH = os.getenv('VAULT_KUBERNETES_TOKEN_PATH')
+VAULT_KUBERNETES_AUTH_PATH = os.getenv('VAULT_KUBERNETES_AUTH_PATH', AUTH_TYPE_KUBERNETES)
 
 # Vault Authentication Option: SSL Client Certificate
 VAULT_SSLCERT = os.getenv("VAULT_SSLCERT")
@@ -129,11 +130,11 @@ class VaultAuthenticator(object):
 
 
     @classmethod
-    def kubernetes(cls, url, role, token_path):
+    def kubernetes(cls, url, role, token_path, mountpoint=VAULT_KUBERNETES_AUTH_PATH):
         with open(token_path, 'r') as token_file:
             token = token_file.read()
         creds = (role, token)
-        return cls(url, creds, AUTH_TYPE_KUBERNETES, AUTH_TYPE_KUBERNETES)
+        return cls(url, creds, AUTH_TYPE_KUBERNETES, mountpoint)
 
 
     @classmethod
